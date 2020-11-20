@@ -34,7 +34,7 @@ import java.util.Date;
 public class JdbcQueryStatement implements QueryStatement<PreparedStatement, Integer> {
 
     @Override
-    public QueryStatement<PreparedStatement, Integer> setDynamic(@NonNull PreparedStatement statement, @NonNull Integer index, @NonNull DataType dataType, Dialect dialect, Object value) {
+    public QueryStatement<PreparedStatement, Integer> setDynamic(@NonNull PreparedStatement statement, @NonNull Integer index, @NonNull DataType dataType, @NonNull Dialect dialect, Object value) {
         if (value == null) {
             try {
                 switch (dataType) {
