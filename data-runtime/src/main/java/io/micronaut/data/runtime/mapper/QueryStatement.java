@@ -20,6 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.data.exceptions.DataAccessException;
 import io.micronaut.data.model.DataType;
+import io.micronaut.data.model.query.builder.sql.Dialect;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -30,16 +31,17 @@ import java.util.UUID;
 /**
  * An abstract interface over prepared statements.
  *
- * @param <PS> The statement type
+ * @param <PS>  The statement type
  * @param <IDX> The index type
  */
 public interface QueryStatement<PS, IDX> {
 
     /**
      * Sets the give given object value.
+     *
      * @param statement The statement
-     * @param index The index
-     * @param value The value
+     * @param index     The index
+     * @param value     The value
      * @return this writer
      * @throws DataAccessException if the value cannot be read
      */
@@ -48,17 +50,20 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a value dynamically using the result set and the given name and data type.
+     *
      * @param statement The statement
-     * @param index The index
-     * @param dataType The data type
-     * @param value the value                 
-     * @throws DataAccessException if the value cannot be read
+     * @param index     The index
+     * @param dataType  The data type
+     * @param dialect   The dialect
+     * @param value     the value
      * @return The writer
+     * @throws DataAccessException if the value cannot be read
      */
     default QueryStatement<PS, IDX> setDynamic(
             @NonNull PS statement,
             @NonNull IDX index,
             @NonNull DataType dataType,
+            Dialect dialect,
             Object value) {
         switch (dataType) {
             case STRING:
@@ -105,12 +110,22 @@ public interface QueryStatement<PS, IDX> {
                     return setTimestamp(statement, index, convertRequired(value, Timestamp.class));
                 }
             case UUID:
-                if (value instanceof CharSequence) {
-                    return setValue(statement, index, UUID.fromString(value.toString()));
-                } else if (value instanceof UUID) {
-                    return setValue(statement, index, value);
+                if (dialect.requiresStringUUID(dataType)) {
+                    if (value instanceof CharSequence) {
+                        return setString(statement, index, value.toString());
+                    } else if (value instanceof UUID) {
+                        return setString(statement, index, value.toString());
+                    } else {
+                        throw new DataAccessException("Invalid UUID: " + value);
+                    }
                 } else {
-                    throw new DataAccessException("Invalid UUID: " + value);
+                    if (value instanceof CharSequence) {
+                        return setValue(statement, index, UUID.fromString(value.toString()));
+                    } else if (value instanceof UUID) {
+                        return setValue(statement, index, value);
+                    } else {
+                        throw new DataAccessException("Invalid UUID: " + value);
+                    }
                 }
             case DOUBLE:
                 if (value instanceof Number) {
@@ -200,13 +215,15 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Convert the value to the given type.
+     *
      * @param value The value
-     * @param type The type
-     * @param <T> The generic type
+     * @param type  The type
+     * @param <T>   The generic type
      * @return The converted value
      * @throws DataAccessException if the value cannot be converted
      */
-    default @Nullable <T> T convertRequired(@Nullable Object value, Class<T> type) {
+    default @Nullable
+    <T> T convertRequired(@Nullable Object value, Class<T> type) {
         if (value == null) {
             return null;
         }
@@ -220,9 +237,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a long value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param value The value             
+     * @param name      The name (such as the column name)
+     * @param value     The value
      * @return This writer
      */
     default @NonNull
@@ -233,9 +251,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a char value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param value The char value
+     * @param name      The name (such as the column name)
+     * @param value     The char value
      * @return This writer
      */
     default @NonNull
@@ -245,9 +264,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a date value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param date The date
+     * @param name      The name (such as the column name)
+     * @param date      The date
      * @return This writer
      */
     default @NonNull
@@ -257,9 +277,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a date value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param date The date
+     * @param name      The name (such as the column name)
+     * @param date      The date
      * @return This writer
      */
     default @NonNull
@@ -269,9 +290,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a string value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param string The string
+     * @param name      The name (such as the column name)
+     * @param string    The string
      * @return This writer
      */
     default QueryStatement<PS, IDX> setString(PS statement, IDX name, String string) {
@@ -280,9 +302,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a int value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param integer The integer
+     * @param name      The name (such as the column name)
+     * @param integer   The integer
      * @return This writer
      */
     default @NonNull
@@ -292,9 +315,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a boolean value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param bool The boolean
+     * @param name      The name (such as the column name)
+     * @param bool      The boolean
      * @return This writer
      */
     default @NonNull
@@ -304,9 +328,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a float value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param f The float
+     * @param name      The name (such as the column name)
+     * @param f         The float
      * @return This writer
      */
     default @NonNull
@@ -316,9 +341,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a byte value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param b The byte
+     * @param name      The name (such as the column name)
+     * @param b         The byte
      * @return This writer
      */
     default @NonNull
@@ -328,9 +354,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a short value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param s The short
+     * @param name      The name (such as the column name)
+     * @param s         The short
      * @return This writer
      */
     default @NonNull
@@ -340,9 +367,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a double value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param d The double
+     * @param name      The name (such as the column name)
+     * @param d         The double
      * @return This writer
      */
     default @NonNull
@@ -352,9 +380,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a BigDecimal value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param bd The big decimal
+     * @param name      The name (such as the column name)
+     * @param bd        The big decimal
      * @return This writer
      */
     default @NonNull
@@ -364,9 +393,10 @@ public interface QueryStatement<PS, IDX> {
 
     /**
      * Write a byte[] value for the given name.
+     *
      * @param statement The statement
-     * @param name The name (such as the column name)
-     * @param bytes the bytes
+     * @param name      The name (such as the column name)
+     * @param bytes     the bytes
      * @return This writer
      */
     default @NonNull

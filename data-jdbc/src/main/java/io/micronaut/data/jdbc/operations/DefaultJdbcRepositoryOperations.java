@@ -457,6 +457,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
         if (StringUtils.isNotEmpty(query) && ArrayUtils.isNotEmpty(params)) {
             final RuntimePersistentEntity<T> persistentEntity =
                     (RuntimePersistentEntity<T>) getEntity(entity.getClass());
+            final Dialect dialect = dialects.getOrDefault(repositoryType, Dialect.ANSI);
             return transactionOperations.executeWrite(status -> {
                 try {
                     Connection connection = status.getConnection();
@@ -488,6 +489,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                                         ps,
                                                         index,
                                                         embeddedProp.getDataType(),
+                                                        dialect,
                                                         embeddedValue
                                                 );
                                             }
@@ -523,6 +525,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                                 ps,
                                                 i + 1,
                                                 idReader.getDataType(),
+                                                dialect,
                                                 id
                                         );
                                         if (association.doesCascade(Relation.Cascade.PERSIST) && !persisted.contains(newValue)) {
@@ -579,7 +582,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                                         ps,
                                                         i + 1,
                                                         idReader.getDataType(),
-                                                        assignedId
+                                                        dialect, assignedId
                                                 );
                                             }
                                         }
@@ -593,6 +596,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                             ps,
                                             i + 1,
                                             dataType,
+                                            dialect,
                                             value
                                     );
                                 } else {
@@ -603,6 +607,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                             ps,
                                             i + 1,
                                             dataType,
+                                            dialect,
                                             newValue
                                     );
                                 }
@@ -701,6 +706,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
         if (identity != null) {
 
             final RuntimePersistentEntity<T> persistentEntity = (RuntimePersistentEntity<T>) getEntity(entity.getClass());
+            final Dialect dialect = dialects.getOrDefault(repositoryType, Dialect.ANSI);
             for (RuntimeAssociation<T> association : persistentEntity.getAssociations()) {
                 if (association.doesCascade(Relation.Cascade.PERSIST)) {
                     final Relation.Kind kind = association.getKind();
@@ -829,7 +835,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                                     ps,
                                                     1,
                                                     persistentEntity.getIdentity().getDataType(),
-                                                    parentId);
+                                                    dialect, parentId);
                                             if (QUERY_LOG.isTraceEnabled()) {
                                                 QUERY_LOG.trace("Binding parameter at position {} to value {}", 2, childId);
                                             }
@@ -837,7 +843,7 @@ public class DefaultJdbcRepositoryOperations extends AbstractSqlRepositoryOperat
                                                     ps,
                                                     2,
                                                     associatedId.getDataType(),
-                                                    childId);
+                                                    dialect, childId);
                                             ps.addBatch();
                                         }
                                         ps.executeBatch();
